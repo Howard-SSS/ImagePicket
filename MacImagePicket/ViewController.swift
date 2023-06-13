@@ -33,6 +33,7 @@ class ViewController: NSViewController {
     
     lazy var imageView: NSImageView = {
         let imageView = NSImageView(frame: .init(x: (view.frame.width - imgSize.width) * 0.5, y: (view.frame.height - imgSize.height) * 0.5, width: imgSize.width, height: imgSize.height))
+        imageView.autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin, .maxYMargin]
         imageView.image = image
         imageView.imageScaling = .scaleProportionallyUpOrDown
         return imageView
@@ -40,10 +41,21 @@ class ViewController: NSViewController {
     
     lazy var alphaView: AlphaView = {
         let alphaView = AlphaView(frame: alphaRect)
+        alphaView.autoresizingMask = [.minXMargin, .maxXMargin, .minYMargin, .maxYMargin]
         alphaView.addGestureRecognizer({
             NSPanGestureRecognizer(target: self, action: #selector(panImageGesture(_:)))
         }())
         return alphaView
+    }()
+    
+    lazy var cutBtn: NSButton = {
+        let cutBtn = NSButton(frame: .init(x: view.frame.width - 100, y: 0, width: 100, height: 50))
+        cutBtn.wantsLayer = true
+        cutBtn.autoresizingMask = [.maxXMargin, .minXMargin]
+        cutBtn.title = "剪切"
+        cutBtn.target = self
+        cutBtn.action = #selector(touchCutBtn)
+        return cutBtn
     }()
     
     // MARK: - life
@@ -53,6 +65,7 @@ class ViewController: NSViewController {
         view.layer?.backgroundColor = .black
         view.addSubview(imageView)
         view.addSubview(alphaView)
+        view.addSubview(cutBtn)
     }
     
     // MARK: - target
@@ -82,6 +95,25 @@ class ViewController: NSViewController {
         } else {
             lastPoint = nil
         }
+    }
+    
+    @objc func touchCutBtn() {
+        cutImage()
+    }
+    
+    // MARK: - 原子方法
+    func cutImage() -> NSImage {
+        let targetSize = CGSize(width: 300, height: 300)
+        let minX = (alphaView.frame.minX - imageView.frame.minX) / imageView.frame.width * image.size.width
+        let minY = (alphaView.frame.minY - imageView.frame.minY) / imageView.frame.height * image.size.height
+        let width = alphaView.frame.width / imageView.frame.width * image.size.width
+        let height = alphaView.frame.height / imageView.frame.height * image.size.height
+        weak var weakSelf = self
+        let ret = NSImage(size: targetSize, flipped: false) { rect in
+            weakSelf?.image.draw(in: .init(origin: .zero, size: targetSize), from: .init(x: minX, y: minY, width: width, height: height), operation: .sourceOver, fraction: 1)
+            return true
+        }
+        return ret
     }
 }
 
